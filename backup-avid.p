@@ -1,0 +1,1 @@
+Your_password_for_the_remote_rsync_server

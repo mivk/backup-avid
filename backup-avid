@@ -1,0 +1,127 @@
+#!/bin/bash
+
+
+# Backup Avid projects and users to a local disk if present
+# and also to a remote rsync server.
+# For the remote backup, a few folders/files are added.
+
+
+######## INIT ########
+
+local_projects="/Users/Shared/AvidMediaComposer/Shared Avid Projects"    # NO SLASH!
+local_users="/Users/Shared/AvidMediaComposer/Avid Users"                 # NO SLASH!
+
+local_backup_dest="/Volumes/DISK_NAME/Avid-backups"                      # NO SLASH! (added later)
+
+rsync_user="rsync_lo"
+rsync_server="alma.ch"
+rsync_dir="chatelains"
+
+pfile="$HOME/backup-avid.p"
+
+remote_dest_dir=$(hostname)
+remote_dest_base="$rsync_user@$rsync_server::$rsync_dir"
+
+backupdir="_before-`date +%d`"
+
+more_rsync_opt="$@"
+
+
+######## FUNCTIONS ########
+
+die() {
+	echo "$@" 1>&2
+	exit 1
+}
+warn() {
+	echo "$@" 1>&2
+}
+
+
+######## CHECK ########
+
+[ -d "$local_projects" ] || die "*** ERROR: Source not found: $local_projects"
+[ -d "$local_users" ]    || die "*** ERROR: Source not found: $local_users"
+
+
+######## Local backup ########
+
+echo ""
+echo "Local Avid backup:"
+echo "            $local_projects"
+echo "        and $local_users"
+echo "    ==> to: $local_backup_dest/"
+echo ""
+
+if [ -d "$local_backup_dest" ]; then
+	rsync -ai --progress --backup --backup-dir="$backupdir" --delete $more_rsync_opt \
+		--exclude="_before-*"     \
+		--exclude="AvidWebCache" \
+		--exclude="WaveformCache" \
+		--exclude=".DS_Store"     \
+		--exclude="Statistics"   \
+		--exclude="Shared Avid Projects/$remote_username/"  \
+	    --exclude="Avid Users/$remote_username/"  \
+		"$local_projects"         \
+		"$local_users"            \
+		"$local_backup_dest/"
+	if [ $? -eq 0 ]; then
+		echo ""
+		echo "* OK local backup to $local_backup_dest"
+		echo ""
+	else
+		warn "ERROR with local backup"
+	fi
+else
+    warn "*** Warning: Destination not found: $local_backup_dest"
+	warn "Skipping local backup"
+fi
+
+
+
+######## Remote backup ########
+
+
+echo ""
+echo "Remote Avid backup:"
+echo "            $local_projects"
+echo "        and $local_users"
+echo "    ==> to: $remote_dest_base/$remote_dest_dir/"
+echo ""
+
+
+if ! route -n get $rsync_server | grep -q gateway; then
+	die "*** ERROR: No connection to server $rsync_server. Skipping remote backup"
+fi
+
+rsync -rti --compress --progress --backup --backup-dir="$backupdir" --delete $more_rsync_opt \
+	--password-file="$pfile"  \
+	--exclude="_before-*"     \
+	--exclude="AvidWebCache"  \
+	--exclude="WaveformCache" \
+	--exclude="Statistics"    \
+	--exclude="SearchData"    \
+    --exclude="WaveformCache" \
+	--exclude=".DS_Store"     \
+	"$HOME/bin"              \
+	"$HOME/.bash_history"    \
+	"$HOME/.profile"         \
+	"/Users/Shared/bin"      \
+	"$local_projects"        \
+	"$local_users"           \
+	$remote_dest_base/$remote_dest_dir
+
+
+if [ $? -eq 0 ]; then
+	echo ""
+	echo "* OK backup to remote"
+	echo ""
+else
+	warn "ERROR with backup to remote"
+fi
+
+
+## TODO:
+## - options
+## - conf file
+## - remove trailing slashes? v1="/this/"; v2="/that/"; for v in "v1" "v2"; do eval "$v=\"\${$v/%\//}\""; done; echo "v1 = $v1, v2 = $v2"
