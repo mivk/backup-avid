@@ -13,9 +13,9 @@ local_users="/Users/Shared/AvidMediaComposer/Avid Users"                 # NO SL
 
 local_backup_dest="/Volumes/DISK_NAME/Avid-backups"                      # NO SLASH! (added later)
 
-rsync_user="rsync_lo"
-rsync_server="alma.ch"
-rsync_dir="chatelains"
+rsync_user="rsync_user"
+rsync_server="example.com"
+rsync_dir="rsync_dir"
 
 pfile="$HOME/backup-avid.p"
 
