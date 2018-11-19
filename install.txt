@@ -1,0 +1,13 @@
+mkdir -p $HOME/bin
+echo $PATH | grep -q ~/bin || echo "export PATH=\$PATH:~/bin" >> ~/.profile
+
+cd bin
+curl -LJOR https://github.com/mivk/backup-avid/raw/master/backup-avid && echo OK
+chmod +x backup-avid
+
+
+read -ep "Password for remote rsync server:"
+echo "$REPLY" > ~/backup-avid.p
+chmod 600 ~/backup-avid.p
+
+nano backup-avid

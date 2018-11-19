@@ -5,26 +5,8 @@
 # and also to a remote rsync server.
 # For the remote backup, a few folders/files are added.
 
-
-######## INIT ########
-
-local_projects="/Users/Shared/AvidMediaComposer/Shared Avid Projects"    # NO SLASH!
-local_users="/Users/Shared/AvidMediaComposer/Avid Users"                 # NO SLASH!
-
-local_backup_dest="/Volumes/DISK_NAME/Avid-backups"                      # NO SLASH! (added later)
-
-rsync_user="rsync_user"
-rsync_server="example.com"
-rsync_dir="rsync_dir"
-
-pfile="$HOME/backup-avid.p"
-
-remote_dest_dir=$(hostname)
-remote_dest_base="$rsync_user@$rsync_server::$rsync_dir"
-
-backupdir="_before-`date +%d`"
-
-more_rsync_opt="$@"
+# Needs a configuration file named backup-avid.conf in the same
+# directory as this script
 
 
 ######## FUNCTIONS ########
@@ -36,6 +18,44 @@ die() {
 warn() {
 	echo "$@" 1>&2
 }
+
+
+######## INIT ########
+
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+conf="$script_dir/backup-avid.conf"
+(( $debug )) && echo "Reading configuration from $conf"
+
+if [ ! -f "$conf" ]; then
+	echo "Configuration file not found: $conf"
+	exit 1
+fi
+
+source "$conf"
+
+# Remove trailing slashes, becasue we add them later. So it works the same
+# whether the conf dirs had slashes or not
+for var in "local_projects" "local_users" "local_backup_dest" ; do
+	eval "$var=\"\${$var/%\//}\""
+done
+
+(( $debug )) && echo "local_projects    = $local_projects"
+(( $debug )) && echo "local_users       = $local_users"
+
+(( $debug )) && echo "local_backup_dest = $local_backup_dest"
+
+(( $debug )) && echo "rsync_user        = $rsync_user"
+(( $debug )) && echo "rsync_server      = $rsync_server"
+(( $debug )) && echo "rsync_dir         = $rsync_dir"
+
+(( $debug )) && echo "password pfile    = $pfile"
+
+(( $debug )) && echo "remote_dest_dir   = $remote_dest_dir"
+(( $debug )) && echo "remote_dest_base  = $remote_dest_base"
+
+(( $debug )) && echo "backupdir         = $backupdir"
+
+more_rsync_opt="$@"
 
 
 ######## CHECK ########
@@ -123,5 +143,3 @@ fi
 
 ## TODO:
 ## - options
-## - conf file
-## - remove trailing slashes? v1="/this/"; v2="/that/"; for v in "v1" "v2"; do eval "$v=\"\${$v/%\//}\""; done; echo "v1 = $v1, v2 = $v2"
