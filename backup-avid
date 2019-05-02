@@ -22,6 +22,7 @@ warn() {
 
 ######## INIT ########
 
+## Read configuration from backup-avid.conf in same dir.
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 conf="$script_dir/backup-avid.conf"
 (( $debug )) && echo "Reading configuration from $conf"
@@ -78,10 +79,8 @@ if [ -d "$local_backup_dest" ]; then
 		--exclude="_before-*"     \
 		--exclude="AvidWebCache" \
 		--exclude="WaveformCache" \
+		--exclude="Statistics"    \
 		--exclude=".DS_Store"     \
-		--exclude="Statistics"   \
-		--exclude="Shared Avid Projects/$remote_username/"  \
-	    --exclude="Avid Users/$remote_username/"  \
 		"$local_projects"         \
 		"$local_users"            \
 		"$local_backup_dest/"
@@ -100,7 +99,7 @@ fi
 
 
 ######## Remote backup ########
-
+(( $backup_to_remote )) || { warn "Skipping remote backup (not configured)"; exit; }
 
 echo ""
 echo "Remote Avid backup:"
@@ -121,12 +120,7 @@ rsync -rti --compress --progress --backup --backup-dir="$backupdir" --delete $mo
 	--exclude="WaveformCache" \
 	--exclude="Statistics"    \
 	--exclude="SearchData"    \
-    --exclude="WaveformCache" \
 	--exclude=".DS_Store"     \
-	"$HOME/bin"              \
-	"$HOME/.bash_history"    \
-	"$HOME/.profile"         \
-	"/Users/Shared/bin"      \
 	"$local_projects"        \
 	"$local_users"           \
 	$remote_dest_base/$remote_dest_dir
@@ -143,3 +137,14 @@ fi
 
 ## TODO:
 ## - options
+## - manage additional dirs and files
+##		"$HOME/bin"              \
+##		"$HOME/.bash_history"    \
+##		"$HOME/.profile"         \
+##		"/Users/Shared/bin"      \
+##	- group excludes (same list for local and remote
+
+## What was (in local backup)
+#		--exclude="Shared Avid Projects/$remote_username/"  \
+#	    --exclude="Avid Users/$remote_username/"  \
+
