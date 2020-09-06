@@ -34,13 +34,16 @@ fi
 
 source "$conf"
 
-# Remove trailing slashes, becasue we add them later. So it works the same
-# whether the conf dirs had slashes or not
+more_rsync_opt="$@"
+
+# Remove trailing slashes, because we add them later. So it works the same
+# whether the dirs defined in conf had slashes or not
 for var in "local_projects" "local_users" "local_backup_dest" ; do
 	eval "$var=\"\${$var/%\//}\""
 done
 
 (( $debug )) && echo "local_projects    = $local_projects"
+(( $debug )) && echo "local_attic       = $local_attic"
 (( $debug )) && echo "local_users       = $local_users"
 
 (( $debug )) && echo "local_backup_dest = $local_backup_dest"
@@ -56,13 +59,20 @@ done
 
 (( $debug )) && echo "backupdir         = $backupdir"
 
-more_rsync_opt="$@"
+if (( $debug )) && (( "${#additional_to_remote[@]}" )); then
+                echo "additional_to_remote = ${additional_to_remote[@]}"
+fi
+
+
+declare -a list_ok
+declare -a list_err
 
 
 ######## CHECK ########
 
 [ -d "$local_projects" ] || die "*** ERROR: Source not found: $local_projects"
-[ -d "$local_users" ]    || die "*** ERROR: Source not found: $local_users"
+[ -d "$local_attic"    ] || die "*** ERROR: Source not found: $local_attic"
+[ -d "$local_users"    ] || die "*** ERROR: Source not found: $local_users"
 
 
 ######## Local backup ########
@@ -70,6 +80,7 @@ more_rsync_opt="$@"
 echo ""
 echo "Local Avid backup:"
 echo "            $local_projects"
+echo "            $local_attic"
 echo "        and $local_users"
 echo "    ==> to: $local_backup_dest/"
 echo ""
@@ -82,18 +93,23 @@ if [ -d "$local_backup_dest" ]; then
 		--exclude="Statistics"    \
 		--exclude=".DS_Store"     \
 		"$local_projects"         \
+		"$local_attic"            \
 		"$local_users"            \
 		"$local_backup_dest/"
 	if [ $? -eq 0 ]; then
 		echo ""
 		echo "* OK local backup to $local_backup_dest"
 		echo ""
+		list_ok+=("* OK local backup to $local_backup_dest")
 	else
-		warn "ERROR with local backup"
+		er=$?
+		warn "ERROR $er with local backup"
+		list_err+=("ERROR $er with local backup to $local_backup_dest")
 	fi
 else
     warn "*** Warning: Destination not found: $local_backup_dest"
 	warn "Skipping local backup"
+	list_err+=("ERROR with local backup: Destination not found: $local_backup_dest")
 fi
 
 
@@ -104,6 +120,7 @@ fi
 echo ""
 echo "Remote Avid backup:"
 echo "            $local_projects"
+echo "            $local_attic"
 echo "        and $local_users"
 echo "    ==> to: $remote_dest_base/$remote_dest_dir/"
 echo ""
@@ -121,8 +138,9 @@ rsync -rti --compress --progress --backup --backup-dir="$backupdir" --delete $mo
 	--exclude="Statistics"    \
 	--exclude="SearchData"    \
 	--exclude=".DS_Store"     \
-	"$local_projects"        \
-	"$local_users"           \
+	"$local_projects"         \
+	"$local_attic"            \
+	"$local_users"            \
 	$remote_dest_base/$remote_dest_dir
 
 
@@ -130,19 +148,52 @@ if [ $? -eq 0 ]; then
 	echo ""
 	echo "* OK backup to remote"
 	echo ""
+	list_ok+=("* OK backup to remote")
 else
-	warn "ERROR with backup to remote"
+	er=$?
+	warn "ERROR $er with backup to remote"
+	list_err+=("ERROR $er with backup to remote")
 fi
 
+if [ "${#additional_to_remote[@]}" -gt 0 ]; then
+	echo "Copying ${#additional_to_remote[@]} additional folder(s) to remote :"
+	echo "${additional_to_remote[@]}"
+	rsync -rti --compress --progress --backup --backup-dir="$backupdir" --delete $more_rsync_opt \
+		--password-file="$pfile"     \
+		--exclude="_before-*"        \
+		--exclude=".DS_Store"        \
+		-F                           \
+		"${additional_to_remote[@]}" \
+		$remote_dest_base/$remote_dest_dir
+
+	if [ $? -eq 0 ]; then
+		echo ""
+		echo "* OK additional backup to remote"
+		echo ""
+		list_ok+=("* OK additional backup to remote")
+	else
+		er=$?
+		warn "ERROR $er with additional backup to remote"
+		list_err+=("ERROR $er with additional backup to remote")
+	fi
+fi
+
+echo "SUMMARY :"
+echo "OK :"
+for msg in "${list_ok[@]}"; do
+	echo "     $msg"
+done
+if (( "${#list_err[@]}" )); then
+	echo "ERROR(S) :"
+	for msg in "${list_err[@]}"; do
+		echo "     $msg"
+	done
+fi
 
 ## TODO:
 ## - options
-## - manage additional dirs and files
-##		"$HOME/bin"              \
-##		"$HOME/.bash_history"    \
-##		"$HOME/.profile"         \
-##		"/Users/Shared/bin"      \
-##	- group excludes (same list for local and remote
+##		"/Users/Shared/bin" ?     \
+##	- group excludes (same list for local and remote?)
 
 ## What was (in local backup)
 #		--exclude="Shared Avid Projects/$remote_username/"  \

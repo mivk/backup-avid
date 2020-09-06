@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## Install script for https://github.com/mivk/backup-avid
+## Very primitive install script for https://github.com/mivk/backup-avid
 
 ## Create ~/bin dir and add it to path
 mkdir -p $HOME/bin
@@ -8,8 +8,8 @@ echo $PATH | grep -q ~/bin || { echo "export PATH=\$PATH:~/bin" >> ~/.profile; e
 
 ## Get files
 cd bin
-for f in backup-avid{,.conf}; do curl -LJOR https://github.com/mivk/backup-avid/raw/master/$f && echo OK; done
-chmod +x backup-avid
+for f in backup-avid{,.conf,-install.sh}; do curl -LJOR https://github.com/mivk/backup-avid/raw/master/$f && echo OK $f; done
+chmod +x backup-avid backup-avid-install.sh
 
 ## Or (if xcode installed or accepting prompt to install)
 ## cd bin
